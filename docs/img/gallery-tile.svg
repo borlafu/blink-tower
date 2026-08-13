@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img"
+     aria-label="Illustration of a single camera tile close up: metadata chips for online state, model, battery voltage, wifi and sync signal, temperature and motion, with the Details panel open showing model, firmware, serial, camera id and battery voltage. The camera view is a placeholder, not real footage.">
+  <defs>
+    <linearGradient id="view2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22262f"/>
+      <stop offset="1" stop-color="#14161c"/>
+    </linearGradient>
+    <style>
+      text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .name { fill: #e6e8ec; font-size: 18px; font-weight: 600; }
+      .chip { fill: #9aa0aa; font-size: 12px; }
+      .handle { fill: #9aa0aa; font-size: 16px; }
+      .ph { fill: #6b7280; font-size: 13px; letter-spacing: 0.04em; }
+      .btn { fill: #ffffff; font-size: 12px; font-weight: 600; }
+      .btn-alt { fill: #e6e8ec; font-size: 12px; font-weight: 600; }
+      .dlabel { fill: #9aa0aa; font-size: 12px; }
+      .dvalue { fill: #e6e8ec; font-size: 12px; }
+      .summary { fill: #9aa0aa; font-size: 12px; }
+      .callout { fill: #9aa0aa; font-size: 11px; font-style: italic; }
+    </style>
+  </defs>
+
+  <rect width="800" height="520" fill="#0e0f13"/>
+
+  <g transform="translate(150,28)">
+    <rect width="500" height="464" rx="12" fill="#1a1c22" stroke="#2a2d36"/>
+
+    <!-- camera view -->
+    <rect x="1" y="1" width="498" height="200" rx="11" fill="url(#view2)"/>
+    <text class="ph" x="250" y="105" text-anchor="middle">placeholder — not real footage</text>
+
+    <!-- title bar -->
+    <text class="handle" x="20" y="234">⠿</text>
+    <text class="name" x="44" y="235">Garage</text>
+
+    <!-- chip row 1 -->
+    <rect x="20" y="248" width="70" height="20" rx="10" fill="none" stroke="#2a2d36"/>
+    <text class="chip" x="55" y="262" text-anchor="middle">● online</text>
+    <rect x="98" y="248" width="150" height="20" rx="10" fill="none" stroke="#2a2d36"/>
+    <text class="chip" x="173" y="262" text-anchor="middle">Indoor/Outdoor (gen 2)</text>
+    <rect x="256" y="248" width="72" height="20" rx="10" fill="none" stroke="#2a2d36"/>
+    <text class="chip" x="292" y="262" text-anchor="middle">🔋 1.70 V</text>
+    <rect x="336" y="248" width="34" height="20" rx="10" fill="none" stroke="#2a2d36"/>
+    <text class="chip" x="353" y="262" text-anchor="middle">ok</text>
+
+    <!-- chip row 2 -->
+    <rect x="20" y="276" width="88" height="20" rx="10" fill="none" stroke="#2a2d36"/>
+    <text class="chip" x="64" y="290" text-anchor="middle">wifi ▮▮▮▯▯</text>
+    <rect x="116" y="276" width="88" height="20" rx="10" fill="none" stroke="#2a2d36"/>
+    <text class="chip" x="160" y="290" text-anchor="middle">sync ▮▮▮▮▯</text>
+    <rect x="212" y="276" width="96" height="20" rx="10" fill="none" stroke="#2a2d36"/>
+    <text class="chip" x="260" y="290" text-anchor="middle">71°F / 21.7°C</text>
+    <rect x="316" y="276" width="80" height="20" rx="10" fill="none" stroke="#2a2d36"/>
+    <text class="chip" x="356" y="290" text-anchor="middle">motion on</text>
+
+    <!-- actions -->
+    <rect x="20" y="308" width="76" height="26" rx="7" fill="#4c8bf5"/>
+    <text class="btn" x="58" y="325" text-anchor="middle">Go live</text>
+    <rect x="106" y="308" width="60" height="26" rx="7" fill="none" stroke="#2a2d36"/>
+    <text class="btn-alt" x="136" y="325" text-anchor="middle">Hide</text>
+
+    <!-- details open -->
+    <text class="summary" x="20" y="360">▾ Details</text>
+    <g transform="translate(20,376)">
+      <text class="dlabel" x="0" y="0">Model</text>
+      <text class="dvalue" x="130" y="0">Indoor/Outdoor (gen 2)</text>
+      <text class="dlabel" x="0" y="18">Firmware</text>
+      <text class="dvalue" x="130" y="18">10.73</text>
+      <text class="dlabel" x="0" y="36">Serial</text>
+      <text class="dvalue" x="130" y="36">EXAMPLE0000000000</text>
+      <text class="dlabel" x="0" y="54">Battery voltage</text>
+      <text class="dvalue" x="130" y="54">1.70 V</text>
+      <text class="dlabel" x="0" y="72">Last motion clip</text>
+      <text class="dvalue" x="130" y="72">12m ago</text>
+    </g>
+  </g>
+
+  <text class="callout" x="400" y="510" text-anchor="middle">
+    Signal and battery readings use Blink's own scales — shown as bars with the raw value on hover, never a made-up percentage.
+  </text>
+</svg>

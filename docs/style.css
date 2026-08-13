@@ -1,0 +1,387 @@
+/* Landing page styles.
+ *
+ * The palette and font stack are copied from frontend/style.css so the site and
+ * the app read as one product. No imports, no framework, no build step. */
+
+:root {
+  --bg: #0e0f13;
+  --panel: #1a1c22;
+  --border: #2a2d36;
+  --text: #e6e8ec;
+  --muted: #9aa0aa;
+  --accent: #4c8bf5;
+  --danger: #f5564c;
+
+  --measure: 62rem;
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.wrap {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: #0f1116;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+
+pre {
+  background: #0f1116;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+/* ---------- Header / hero ---------- */
+
+.topbar {
+  border-bottom: 1px solid var(--border);
+  padding: 0.9rem 0;
+}
+
+.topbar .wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.topbar nav {
+  margin-left: auto;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+
+.topbar nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.topbar nav a:hover,
+.topbar nav a:focus {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.hero {
+  padding: 3.5rem 0 2rem;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 7vw, 3.4rem);
+  line-height: 1.1;
+  margin: 0 0 1rem;
+}
+
+.hero .lede {
+  font-size: clamp(1rem, 2.6vw, 1.25rem);
+  color: var(--text);
+  max-width: 42rem;
+  margin: 0 auto 0.75rem;
+}
+
+.hero .honesty {
+  color: var(--muted);
+  font-size: 0.95rem;
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+.cta {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 1.75rem 0 0;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.btn.secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn:hover,
+.btn:focus {
+  text-decoration: underline;
+}
+
+/* ---------- Sections ---------- */
+
+section {
+  padding: 2.5rem 0;
+}
+
+h2 {
+  font-size: clamp(1.3rem, 3.5vw, 1.8rem);
+  margin: 0 0 0.35rem;
+}
+
+.section-lede {
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+  max-width: 46rem;
+}
+
+h3 {
+  font-size: 1.05rem;
+  margin: 0 0 0.4rem;
+}
+
+/* ---------- Callout ---------- */
+
+.callout {
+  border: 1px solid var(--danger);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: rgba(245, 86, 76, 0.07);
+  padding: 1rem 1.1rem;
+  margin: 0 auto;
+  max-width: 46rem;
+}
+
+.callout p {
+  margin: 0;
+}
+
+.callout .callout-title {
+  font-weight: 700;
+  color: var(--danger);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+/* ---------- Card grids ---------- */
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.2rem;
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.card p + p {
+  margin-top: 0.6rem;
+}
+
+.tagline-chip {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ---------- Gallery ---------- */
+
+.gallery {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.gallery figure {
+  margin: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.gallery img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #0f1116;
+}
+
+.gallery figcaption {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Steps ---------- */
+
+.steps {
+  counter-reset: step;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+}
+
+.steps li {
+  position: relative;
+  padding-left: 2.4rem;
+  margin-bottom: 0.9rem;
+  color: var(--muted);
+}
+
+.steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.1rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+}
+
+.steps li strong {
+  color: var(--text);
+}
+
+/* ---------- Security list ---------- */
+
+.risks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.risks li {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  color: var(--muted);
+}
+
+.risks li strong {
+  color: var(--text);
+}
+
+.risks li.handled {
+  border-left-color: var(--accent);
+}
+
+.plain {
+  color: var(--muted);
+}
+
+.plain li {
+  margin-bottom: 0.5rem;
+}
+
+/* ---------- Footer ---------- */
+
+footer {
+  border-top: 1px solid var(--border);
+  padding: 1.75rem 0 2.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+footer p {
+  margin: 0 0 0.5rem;
+}
+
+.disclaimer {
+  font-size: 0.85rem;
+}
+
+/* ---------- Wider screens ---------- */
+
+@media (min-width: 720px) {
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gallery {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .risks {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  section {
+    padding: 3rem 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

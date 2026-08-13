@@ -1,5 +1,8 @@
 # Blink Tower
 
+**Every camera. One wall.** —
+[borlafu.github.io/blink-tower](https://borlafu.github.io/blink-tower/)
+
 Self-hosted web app to watch **all your Blink cameras at once**, side by side,
 grouped by location.
 

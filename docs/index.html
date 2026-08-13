@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blink Tower — every camera, one wall</title>
+    <meta
+      name="description"
+      content="Self-hosted dashboard for all your Blink cameras: one wall grouped by location, drag-to-reorder tiles, live camera info, and live view on demand. MIT licensed."
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="data:," />
+    <meta property="og:title" content="Blink Tower — every camera, one wall" />
+    <meta
+      property="og:description"
+      content="Self-hosted dashboard for all your Blink cameras, grouped by location, with live view on demand."
+    />
+    <meta property="og:type" content="website" />
+  </head>
+  <body>
+    <!-- Tagline alternates, kept for easy swapping:
+         "Every Blink camera. One wall. One glance."
+         "Every camera on one wall — running on your own machine." -->
+
+    <header class="topbar">
+      <div class="wrap">
+        <span class="brand">Blink Tower</span>
+        <nav aria-label="Sections">
+          <a href="#features">Features</a>
+          <a href="#gallery">Gallery</a>
+          <a href="#how">How it works</a>
+          <a href="#quick-start">Quick start</a>
+          <a href="#security">Security</a>
+          <a href="https://github.com/borlafu/blink-tower">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <h1>Every camera. One wall.</h1>
+          <p class="lede">
+            Self-hosted dashboard for <strong>all</strong> your Blink cameras —
+            grouped by location, arranged how you like, with live view one click
+            away.
+          </p>
+          <p class="honesty">
+            Blink has no local API. Blink Tower talks to Blink's cloud with your
+            own account, then serves the result from a small app on your own
+            machine. It does not make your cameras local, and it is not
+            affiliated with Amazon or Blink.
+          </p>
+          <p class="cta">
+            <a class="btn" href="#quick-start">Quick start</a>
+            <a class="btn secondary" href="https://github.com/borlafu/blink-tower"
+              >View on GitHub</a
+            >
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="warning-heading" style="padding-top: 0">
+        <div class="wrap">
+          <div class="callout">
+            <p>
+              <strong class="callout-title" id="warning-heading"
+                >Read this before you expose it</strong
+              >
+              Blink Tower has <strong>no authentication</strong>. Anyone who can
+              reach the port can watch your cameras and start live streams. It
+              binds to <code>127.0.0.1</code> by default, so only your own
+              machine can connect —
+              <a href="#security">keep it that way, or put real auth in front</a
+              >.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" aria-labelledby="features-heading">
+        <div class="wrap">
+          <h2 id="features-heading">What it does</h2>
+          <p class="section-lede">
+            One page, every camera, no tapping through an app one device at a
+            time.
+          </p>
+
+          <ul class="cards">
+            <li class="card">
+              <h3>Every camera on one wall</h3>
+              <p>
+                All your cameras side by side, grouped automatically by Blink
+                location — one section per sync module, so "Home" and "Garden
+                House" stay separate.
+              </p>
+            </li>
+
+            <li class="card">
+              <h3>Two refresh clocks</h3>
+              <p>
+                Wired indoor cameras refresh fast (5s by default); battery
+                cameras refresh slowly (1 minute by default) to spare the
+                battery. Both rates are dropdowns in the header, not config
+                files.
+              </p>
+            </li>
+
+            <li class="card">
+              <h3>Arrange it your way</h3>
+              <p>
+                Drag a tile by its handle to reorder it within its location, and
+                hide any tile you never watch. Your layout is remembered per
+                browser.
+              </p>
+            </li>
+
+            <li class="card">
+              <h3>Hidden means idle</h3>
+              <p>
+                Hiding a camera stops polling it — no Blink cloud requests, no
+                battery drain. If it was streaming, the live session is released
+                on the server too.
+              </p>
+            </li>
+
+            <li class="card">
+              <h3>The details Blink hides</h3>
+              <p>
+                Each tile shows online state, model, battery state and voltage,
+                wifi and sync-module signal, temperature and the motion setting.
+                Serial, firmware, camera id and last motion clip sit under
+                <em>Details</em>.
+              </p>
+              <p>
+                Signal and battery readings use Blink's own undocumented scales,
+                so they render as bars with the raw value on hover — never an
+                invented percentage.
+              </p>
+            </li>
+
+            <li class="card">
+              <h3>Live view on demand</h3>
+              <p>
+                <em>Go live</em> opens Blink's real video stream — a proprietary
+                Immedia protocol over TLS, repackaged into browser-friendly HLS
+                by <code>ffmpeg</code>. Every session has a hard timeout and an
+                explicit stop, because streaming drains the battery.
+              </p>
+            </li>
+
+            <li class="card">
+              <h3>Nothing stored server-side</h3>
+              <p>
+                Your tile order and hidden cameras live in your browser's
+                <code>localStorage</code>. The app keeps no user database, no
+                accounts, no history.
+              </p>
+            </li>
+
+            <li class="card">
+              <h3>Small and boring on purpose</h3>
+              <p>
+                FastAPI plus vanilla JavaScript. No bundler, no framework, no
+                build step, one vendored library. MIT licensed — read the whole
+                thing in an afternoon.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="gallery" aria-labelledby="gallery-heading">
+        <div class="wrap">
+          <h2 id="gallery-heading">What it looks like</h2>
+          <p class="section-lede">
+            These are illustrations of the interface, not screenshots — every
+            camera view is a placeholder, and the camera names are made up. No
+            real footage appears on this page.
+          </p>
+
+          <ul class="gallery">
+            <li>
+              <figure>
+                <img
+                  src="img/gallery-grid.svg"
+                  alt="The grid: two location sections holding five camera tiles, each with metadata chips and Go live and Hide buttons. One tile shows a red LIVE badge."
+                  width="800"
+                  height="520"
+                />
+                <figcaption>
+                  Every camera in one view, grouped by location. One tile is
+                  streaming live.
+                </figcaption>
+              </figure>
+            </li>
+
+            <li>
+              <figure>
+                <img
+                  src="img/gallery-tile.svg"
+                  alt="A single tile close up showing chips for online state, model, battery voltage, wifi and sync signal, temperature and motion, with the Details panel expanded to show model, firmware, serial, battery voltage and last motion clip."
+                  width="800"
+                  height="520"
+                />
+                <figcaption>
+                  One tile, everything Blink will tell you about the camera.
+                </figcaption>
+              </figure>
+            </li>
+
+            <li>
+              <figure>
+                <img
+                  src="img/gallery-reorder.svg"
+                  alt="A tile being dragged, drawn semi-transparent with a dashed blue outline, while a dashed drop zone opens between the two remaining tiles."
+                  width="800"
+                  height="420"
+                />
+                <figcaption>
+                  Drag by the handle to reorder within a location.
+                </figcaption>
+              </figure>
+            </li>
+
+            <li>
+              <figure>
+                <img
+                  src="img/gallery-hidden.svg"
+                  alt="A location heading reading two of three cameras shown, two visible tiles, and a tray below offering Show Patio and Show all buttons, with a note that hidden cameras stop being polled."
+                  width="800"
+                  height="420"
+                />
+                <figcaption>
+                  Hide what you never watch; bring it back from the tray.
+                </figcaption>
+              </figure>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="how" aria-labelledby="how-heading">
+        <div class="wrap">
+          <h2 id="how-heading">How it works</h2>
+          <p class="section-lede">
+            Blink is a cloud service. Even though your cameras sit on your wifi,
+            there is no local API — every request goes through Blink's servers
+            and needs your Blink account. Blink's battery cameras are also not
+            built for continuous streaming. So Blink Tower is a hybrid.
+          </p>
+
+          <ul class="cards">
+            <li class="card">
+              <span class="tagline-chip">Default</span>
+              <h3>Snapshot grid</h3>
+              <p>
+                The app asks Blink for a fresh still from each camera on a timer
+                you choose, and lays them all out side by side. Reliable,
+                near-live, easy on batteries — a few seconds behind reality
+                rather than true video.
+              </p>
+            </li>
+
+            <li class="card">
+              <span class="tagline-chip">On demand</span>
+              <h3>Live view</h3>
+              <p>
+                Press <em>Go live</em> and the backend opens Blink's real stream
+                and hands it to your browser as HLS. Best effort: Blink caps
+                sessions at around five minutes and it drains the camera, so
+                there is a hard timeout and an explicit stop.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="quick-start" aria-labelledby="quick-start-heading">
+        <div class="wrap">
+          <h2 id="quick-start-heading">Quick start</h2>
+          <p class="section-lede">
+            Python 3.10 or newer. <code>ffmpeg</code> is only needed for live
+            view — snapshots work without it.
+          </p>
+
+          <pre><code>git clone https://github.com/borlafu/blink-tower.git
+cd blink-tower
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env
+# edit .env: set BLINK_USERNAME and BLINK_PASSWORD
+
+uvicorn backend.main:app
+# then open http://localhost:8000</code></pre>
+
+          <p class="section-lede">On first launch:</p>
+          <ol class="steps">
+            <li>Click <strong>Connect to Blink</strong>.</li>
+            <li>
+              Blink emails you a <strong>2FA pin</strong> — type it into the app.
+            </li>
+            <li>
+              The session is cached locally, so the pin is only needed
+              <strong>once</strong>.
+            </li>
+            <li>
+              Your cameras appear grouped by location and start refreshing.
+            </li>
+          </ol>
+
+          <div class="callout">
+            <p>
+              <strong class="callout-title">Before you go further</strong>
+              The default bind is <code>127.0.0.1</code> — local only, which is
+              the safe configuration. If you are thinking about reaching it from
+              outside the house, read the next section first.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="security" aria-labelledby="security-heading">
+        <div class="wrap">
+          <h2 id="security-heading">Security — before you publish it</h2>
+          <p class="section-lede">
+            Blink Tower is built for single-user use on your own machine. That is
+            not a disclaimer to skip; it is the design point. Here is exactly
+            what is missing and what to do about it.
+          </p>
+
+          <ul class="risks">
+            <li>
+              <strong>No authentication, at all.</strong> There is no login
+              page. Reaching the port is enough to view every camera and start
+              live streams. The default <code>127.0.0.1</code> bind is what
+              keeps that safe.
+            </li>
+
+            <li>
+              <strong>The exposure warning can be bypassed.</strong> Setting
+              <code>HOST</code> to anything other than loopback prints a warning
+              at startup — but that check only reads the <code>HOST</code>
+              setting. Passing <code>--host</code> to <code>uvicorn</code>
+              directly skips it entirely and prints nothing.
+            </li>
+
+            <li>
+              <strong>Do not port-forward it.</strong> If you need access from
+              outside the house, put it behind a VPN such as WireGuard or
+              Tailscale, or an authenticating reverse proxy. Those give you the
+              login layer the app itself does not have.
+            </li>
+
+            <li>
+              <strong>No CSRF protection.</strong> While the app is running,
+              another site open in your browser can fire a simple cross-origin
+              <code>POST</code> at the auth or live-view endpoints. It cannot
+              read the response, but the side effect — starting a stream,
+              draining a camera battery — still happens.
+            </li>
+
+            <li>
+              <strong>Error messages are verbose on purpose.</strong> Upstream
+              Blink failure text is passed straight through to the client to
+              make local debugging possible. That is useful at home and a
+              needless information leak anywhere else.
+            </li>
+
+            <li>
+              <strong>Your Blink credentials are real credentials.</strong> They
+              come from the environment only, never hardcoded. Both
+              <code>.env</code> and the cached session file are gitignored — do
+              not commit them. The session file holds your Blink password and
+              refresh tokens and is written owner-only
+              (<code>0600</code>).
+            </li>
+
+            <li class="handled">
+              <strong>Already handled: untrusted names.</strong> Camera names
+              arrive from the Blink cloud, so they are sanitized before being
+              used as filesystem paths and rendered as text rather than markup —
+              no path traversal, no cross-site scripting.
+            </li>
+
+            <li class="handled">
+              <strong>Already handled: no server-side user data.</strong> Your
+              layout preferences never leave your browser, and the app keeps no
+              accounts, sessions or history of its own.
+            </li>
+          </ul>
+
+          <p class="section-lede" style="margin-top: 1.25rem">
+            Short version: loopback and a VPN, or a reverse proxy that asks for a
+            password. Never a bare port on the internet.
+          </p>
+        </div>
+      </section>
+
+      <section id="limitations" aria-labelledby="limitations-heading">
+        <div class="wrap">
+          <h2 id="limitations-heading">Honest limitations</h2>
+          <ul class="plain">
+            <li>
+              Snapshots are near-live — a few seconds behind — not continuous
+              video.
+            </li>
+            <li>
+              Live view depends on Blink's undocumented live endpoint. It can
+              end early or fail outright if a camera is busy or offline; the app
+              reports the error and falls back to snapshots.
+            </li>
+            <li>
+              Blink's cloud is mandatory. If Blink is down or your account is
+              locked, there is nothing a local app can do about it.
+            </li>
+            <li>
+              Layout is per browser. A different browser or device starts from
+              the default arrangement.
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          <a href="https://github.com/borlafu/blink-tower">Blink Tower on GitHub</a>
+          — MIT licensed. The vendored <code>hls.js</code> is Apache-2.0. Built
+          on <a href="https://github.com/fronzbot/blinkpy">blinkpy</a>.
+        </p>
+        <p class="disclaimer">
+          Not affiliated with, endorsed by, or sponsored by Amazon or Blink.
+          "Blink" is a trademark of its respective owner. All interface images on
+          this page are illustrations containing no real camera footage.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
