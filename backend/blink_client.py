@@ -14,8 +14,9 @@ import asyncio
 import os
 import time
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from aiohttp import ClientSession
 from blinkpy.auth import Auth
@@ -25,6 +26,20 @@ from blinkpy.helpers.util import json_load
 
 # Blink product types that are USB/wired (indoor) rather than battery.
 USB_PRODUCT_TYPES = {"owl", "hawk"}
+
+# Blink's internal product types mapped to the names on the box. Unknown types
+# fall through to the raw value (see _model_name) so a new Blink model still
+# shows something useful instead of breaking the UI.
+PRODUCT_MODEL_NAMES = {
+    "owl": "Mini",
+    "hawk": "Mini 2",
+    "white": "Indoor (gen 1)",
+    "catalina": "Indoor/Outdoor (gen 2)",
+    "superior": "Outdoor 4",
+    "lotus": "Video Doorbell",
+    "sedona": "Outdoor 4 Floodlight",
+    "rosie": "Wired Floodlight",
+}
 
 # The cached session file holds account tokens: owner-only, never group/world.
 CREDS_FILE_MODE = 0o600
@@ -42,13 +57,31 @@ class NotAuthenticated(BlinkError):
 
 @dataclass(frozen=True)
 class CameraInfo:
-    """Immutable view of a camera for the API layer."""
+    """Immutable view of a camera for the API layer.
+
+    Every field beyond name/network/power is optional: Blink reports a different
+    subset per model (USB cameras have no battery, some models never report
+    temperature), and missing values stay ``None`` for the UI to omit.
+    """
 
     name: str
     network: str
     power: str  # "usb" (indoor/wired) or "battery" (outdoor)
-    battery: Optional[str]
-    temperature: Optional[float]
+    camera_id: Optional[str]
+    model: Optional[str]  # friendly name, e.g. "Mini"
+    product_type: Optional[str]  # raw Blink type, e.g. "owl"
+    firmware: Optional[str]
+    serial: Optional[str]
+    online: bool
+    battery_state: Optional[str]  # "ok" / "low"
+    battery_level: Optional[int]  # 0-3 bars scale, NOT a percentage
+    battery_voltage: Optional[int]  # 100ths of a volt, so 165 == 1.65V
+    wifi_strength: Optional[int]
+    sync_signal_strength: Optional[int]  # link to the sync module (LFR)
+    temperature_f: Optional[float]
+    temperature_c: Optional[float]
+    motion_enabled: Optional[bool]
+    last_record: Optional[str]  # ISO 8601
 
 
 class BlinkClient:
@@ -253,16 +286,88 @@ def _power_source(cam) -> str:
     return "battery"
 
 
+def _model_name(product_type: Optional[str]) -> Optional[str]:
+    """Map a Blink product type to the name printed on the box.
+
+    Unknown types (a model released after this mapping was written) fall back to
+    the raw type so the UI still says something concrete.
+    """
+
+    if not product_type:
+        return None
+    return PRODUCT_MODEL_NAMES.get(product_type, product_type)
+
+
+def _iso(value: Any) -> Optional[str]:
+    """Normalize a timestamp to an ISO 8601 string, or None.
+
+    blinkpy hands back either a ``datetime`` or an already-formatted string
+    depending on the endpoint; both must survive JSON serialization.
+    """
+
+    if value is None or value == "":
+        return None
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return str(value)
+
+
+def _as_int(value: Any) -> Optional[int]:
+    """Coerce a Blink-reported number to int, or None when unusable."""
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_float(value: Any) -> Optional[float]:
+    """Coerce a Blink-reported number to float, or None when unusable."""
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_bool(value: Any) -> Optional[bool]:
+    """Coerce a Blink flag to bool, or None.
+
+    Blink reports ``motion_enabled`` as the literal string "unknown" when the
+    config is missing, which must not become a truthy True.
+    """
+
+    if isinstance(value, bool):
+        return value
+    if value in (0, 1):
+        return bool(value)
+    return None
+
+
 def _camera_info(name: str, network: str, cam) -> CameraInfo:
     """Build a CameraInfo from a blinkpy camera object."""
 
     attrs = getattr(cam, "attributes", {}) or {}
+    product_type = attrs.get("type")
     return CameraInfo(
         name=name,
         network=network,
         power=_power_source(cam),
-        battery=attrs.get("battery"),
-        temperature=attrs.get("temperature"),
+        camera_id=attrs.get("camera_id"),
+        model=_model_name(product_type),
+        product_type=product_type,
+        firmware=attrs.get("version"),
+        serial=attrs.get("serial"),
+        online=bool(getattr(cam, "online", False)),
+        battery_state=attrs.get("battery"),
+        battery_level=_as_int(attrs.get("battery_level")),
+        battery_voltage=_as_int(attrs.get("battery_voltage")),
+        wifi_strength=_as_int(attrs.get("wifi_strength")),
+        sync_signal_strength=_as_int(attrs.get("sync_signal_strength")),
+        temperature_f=_as_float(attrs.get("temperature")),
+        temperature_c=_as_float(attrs.get("temperature_c")),
+        motion_enabled=_as_bool(attrs.get("motion_enabled")),
+        last_record=_iso(attrs.get("last_record")),
     )
 
 

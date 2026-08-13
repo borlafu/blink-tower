@@ -47,7 +47,8 @@
 
     <main id="grid" class="locations"></main>
 
+    <!-- hls.js stays a classic script: app code reads it as window.Hls. -->
     <script src="/static/vendor/hls.min.js"></script>
-    <script src="/static/app.js"></script>
+    <script type="module" src="/static/app.js"></script>
   </body>
 </html>

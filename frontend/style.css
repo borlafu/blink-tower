@@ -146,22 +146,112 @@ button:disabled {
 .cell .bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.6rem 0.8rem;
+  padding: 0.6rem 0.8rem 0.3rem;
 }
 
 .cell .name {
   font-weight: 600;
+  margin-right: auto;
 }
 
-.cell .tag {
+.drag-handle {
+  color: var(--muted);
+  cursor: grab;
+  user-select: none;
+  line-height: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.cell.dragging {
+  opacity: 0.5;
+  outline: 1px dashed var(--accent);
+}
+
+/* Metadata chips (power source, model, battery, signal, temperature…). */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0 0.8rem 0.5rem;
+}
+
+.tag {
   font-size: 0.7rem;
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.05rem 0.5rem;
-  margin-right: auto;
+  white-space: nowrap;
+}
+
+.tag.ok {
+  color: var(--text);
+}
+
+.tag.warn {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.cell .actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.8rem 0.5rem;
+}
+
+.cell .details {
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 0 0.8rem 0.5rem;
+}
+
+.cell .details summary {
+  cursor: pointer;
+}
+
+.details-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+  padding-top: 0.4rem;
+}
+
+.detail-row {
+  display: contents;
+}
+
+.detail-label {
+  color: var(--muted);
+}
+
+.detail-value {
+  color: var(--text);
+  word-break: break-all;
+}
+
+/* Tray of hidden cameras, one per location. */
+.hidden-tray {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0 1.25rem 0.5rem;
+}
+
+.tray-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+button.chip {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
 }
 
 .badge {

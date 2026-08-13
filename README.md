@@ -11,10 +11,13 @@ request goes through Blink's cloud and needs your Blink account credentials
 continuous streaming. So this app is a **hybrid**:
 
 - **Snapshot grid (default):** every camera shown side by side, **grouped by
-  location** (one group per Blink sync module / network). Each camera is tagged
-  by power source — **USB/indoor** (Blink Mini) vs **battery/outdoor** — and the
-  two groups refresh at independent rates chosen in the UI header (USB default
-  5s; battery default 1 min, to spare the battery). Reliable, near-live.
+  location** (one group per Blink sync module / network). Cameras are split by
+  power source — **USB/indoor** (Blink Mini) vs **battery/outdoor** — and the two
+  groups refresh at independent rates chosen in the UI header (USB default 5s;
+  battery default 1 min, to spare the battery). Reliable, near-live.
+  Each tile shows what Blink reports about the camera: online state, model,
+  battery level and state, wifi and sync-module signal, temperature and motion
+  setting, with serial, firmware and last motion clip under **Details**.
 - **Live view (on demand):** a per-camera "Go live" button opens Blink's real
   video stream. Blink uses a proprietary Immedia protocol over TLS (not RTSP);
   blinkpy speaks it, and `ffmpeg` repackages the MPEG-TS into browser HLS.
@@ -63,12 +66,27 @@ First launch:
 Click **Go live** on a camera for real video; **Stop live** returns to
 snapshots.
 
+## Arranging the grid
+
+- **Reorder:** grab a tile by the **⠿** handle in its title bar and drag it to a
+  new slot. Reordering is within a location — tiles do not move between Blink
+  networks.
+- **Hide / show:** **Hide** removes a tile and **stops polling it**, so a camera
+  you never watch costs no Blink cloud calls and no battery. Hidden cameras
+  appear as **Show `<name>`** buttons under their location, next to a
+  **Show all** shortcut.
+- Order and hidden cameras are remembered **per browser** (`localStorage`, key
+  `blink-tower.layout.v1`) — not per Blink account, so a different browser or
+  device starts from the default layout. Clearing site data resets it.
+- Camera info on the tiles is re-read once a minute. This costs no extra Blink
+  calls: it reads the values the snapshot polling already refreshed.
+
 ## Configuration
 
-Snapshot refresh rates are chosen in the UI header (not config). Remaining
-optional knobs live in `.env` (see `.env.example`): a protective capture floor,
-live-view timeout, creds/HLS paths, bind host/port. By default the server binds
-to `127.0.0.1` (local only).
+Snapshot refresh rates, tile order and hidden cameras are all chosen in the UI
+(not config). Remaining optional knobs live in `.env` (see `.env.example`): a
+protective capture floor, live-view timeout, creds/HLS paths, bind host/port. By
+default the server binds to `127.0.0.1` (local only).
 
 ## Security
 

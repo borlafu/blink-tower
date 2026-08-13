@@ -1,15 +1,37 @@
 "use strict";
 
-// Frontend controller: snapshot grid with on-demand HLS live view.
-// Refresh cadence is chosen in the UI, separately per power source:
-// USB (indoor) cameras poll fast; battery (outdoor) cameras poll slowly.
+// Frontend entry point: authentication, the location sections, and the wiring
+// between the layout store (order + hidden cameras) and the tiles themselves.
+//
+// Refresh cadence is chosen in the UI, separately per power source: USB (indoor)
+// cameras poll fast; battery (outdoor) cameras poll slowly.
+
+import { api, hide, show } from "./api.js";
+import {
+  isHidden,
+  loadLayout,
+  orderCameras,
+  saveLayout,
+  withHidden,
+  withOrder,
+} from "./layout.js";
+import { enableDropZone } from "./reorder.js";
+import {
+  clearTiles,
+  createTile,
+  hasTile,
+  setRate,
+  startSnapshots,
+  updateTile,
+} from "./tile.js";
+
+// How often camera metadata (battery, signal, temperature…) is re-read. This
+// costs no extra Blink cloud calls: the route serves blinkpy's in-memory
+// attributes, refreshed as a side effect of the snapshot polling.
+const METADATA_REFRESH_MS = 60000;
+
 const usbSelect = document.getElementById("rate-usb");
 const batterySelect = document.getElementById("rate-battery");
-const rates = {
-  usb: Number(usbSelect.value) * 1000,
-  battery: Number(batterySelect.value) * 1000,
-};
-
 const statusEl = document.getElementById("status");
 const authEl = document.getElementById("auth");
 const authMsgEl = document.getElementById("auth-msg");
@@ -19,47 +41,21 @@ const loginBtn = document.getElementById("login-btn");
 const pinInput = document.getElementById("pin");
 const gridEl = document.getElementById("grid");
 
-// Per-camera runtime state: { timer, hls, video, img, live }.
-const cells = new Map();
+let layout = loadLayout();
 
-// Changing a rate restarts polling for that power group's non-live cameras.
-function bindRate(select, power) {
-  select.addEventListener("change", () => {
-    rates[power] = Number(select.value) * 1000;
-    cells.forEach((state, name) => {
-      if (!state.live && state.power === power) {
-        stopSnapshots(name);
-        startSnapshots(name);
-      }
-    });
-  });
-}
-bindRate(usbSelect, "usb");
-bindRate(batterySelect, "battery");
+// Latest /api/cameras payload, grouped by Blink network (location).
+let camerasByNetwork = new Map();
+// Per-location DOM handles: network -> { title, row, tray }.
+const sections = new Map();
 
-async function api(path, options) {
-  const res = await fetch(path, options);
-  let body = null;
-  try {
-    body = await res.json();
-  } catch (_) {
-    // Non-JSON (should not happen for /api/*).
-  }
-  if (!res.ok || (body && body.success === false)) {
-    const message = (body && body.error) || `Request failed (${res.status})`;
-    const err = new Error(message);
-    err.status = res.status;
-    throw err;
-  }
-  return body ? body.data : null;
-}
+let metadataTimer = null;
 
-function show(el) {
-  el.classList.remove("hidden");
-}
-function hide(el) {
-  el.classList.add("hidden");
-}
+setRate("usb", usbSelect.value);
+setRate("battery", batterySelect.value);
+usbSelect.addEventListener("change", () => setRate("usb", usbSelect.value));
+batterySelect.addEventListener("change", () =>
+  setRate("battery", batterySelect.value)
+);
 
 async function boot() {
   try {
@@ -124,195 +120,238 @@ auth2faEl.addEventListener("submit", async (event) => {
   }
 });
 
+/** Group cameras by their Blink network (location), preserving API order. */
+function groupByNetwork(cameras) {
+  const byNetwork = new Map();
+  cameras.forEach((camera) => {
+    const key = camera.network || "Unknown location";
+    if (!byNetwork.has(key)) byNetwork.set(key, []);
+    byNetwork.get(key).push(camera);
+  });
+  return byNetwork;
+}
+
+function camerasOf(network) {
+  return camerasByNetwork.get(network) || [];
+}
+
+/** Cameras of one location in the user's chosen order. */
+function orderedCamerasOf(network) {
+  return orderCameras(camerasOf(network), network, layout);
+}
+
 async function loadCameras() {
   statusEl.textContent = "Loading cameras…";
   const cameras = await api("/api/cameras");
-  gridEl.innerHTML = "";
-  cells.clear();
+  await renderAll(cameras);
+  startMetadataRefresh();
+}
+
+async function renderAll(cameras) {
+  await clearTiles();
+  gridEl.replaceChildren();
+  sections.clear();
+  camerasByNetwork = groupByNetwork(cameras);
+
   if (!cameras.length) {
     statusEl.textContent = "No cameras found on this Blink account.";
     return;
   }
   statusEl.textContent = `${cameras.length} camera(s) across your locations.`;
 
-  // Group cameras by their Blink network (location), preserving order.
-  const byNetwork = new Map();
-  cameras.forEach((cam) => {
-    const key = cam.network || "Unknown location";
-    if (!byNetwork.has(key)) byNetwork.set(key, []);
-    byNetwork.get(key).push(cam);
+  camerasByNetwork.forEach((_, network) => renderSection(network));
+}
+
+function renderSection(network) {
+  const section = document.createElement("section");
+  section.className = "location";
+
+  const title = document.createElement("h2");
+  title.className = "location-title";
+
+  const row = document.createElement("div");
+  row.className = "grid";
+  enableDropZone(row);
+
+  const tray = document.createElement("div");
+  tray.className = "hidden-tray hidden";
+
+  section.append(title, row, tray);
+  gridEl.appendChild(section);
+  sections.set(network, { title, row, tray });
+
+  orderedCamerasOf(network).forEach((camera) => {
+    if (!isHidden(camera.name, layout)) row.appendChild(buildTile(camera));
   });
 
-  byNetwork.forEach((group, network) => {
-    const section = document.createElement("section");
-    section.className = "location";
-    const title = document.createElement("h2");
-    title.className = "location-title";
-    title.textContent = `${network} · ${group.length} camera(s)`;
-    const row = document.createElement("div");
-    row.className = "grid";
-    section.append(title, row);
-    gridEl.appendChild(section);
-    group.forEach((cam) => buildCell(cam, row));
+  refreshSectionChrome(network);
+}
+
+function buildTile(camera) {
+  const network = camera.network || "Unknown location";
+  return createTile(camera, {
+    onHide: (name) => onTileHidden(network, name),
+    onReorder: (names) => persistOrder(network, names),
   });
 }
 
-function buildCell(camera, container) {
-  const name = camera.name;
+/**
+ * Persist a location's tile order after a drag.
+ *
+ * Hidden cameras are absent from the DOM, so they are folded back in at their
+ * previous index — hiding a camera must not lose its place in the order.
+ */
+function persistOrder(network, visibleNames) {
+  const previous = layout.order[network] || [];
+  const apiNames = camerasOf(network).map((camera) => camera.name);
+  const merged = [...visibleNames];
 
-  const cell = document.createElement("div");
-  cell.className = "cell";
+  apiNames
+    .filter((name) => !visibleNames.includes(name))
+    .forEach((name) => {
+      // Prefer where the user last had it; otherwise its position as Blink
+      // listed it. Either way, clamped to the current length.
+      const previousIndex = previous.indexOf(name);
+      const fallbackIndex = apiNames.indexOf(name);
+      const index = Math.min(
+        previousIndex >= 0 ? previousIndex : fallbackIndex,
+        merged.length
+      );
+      merged.splice(index, 0, name);
+    });
 
-  const view = document.createElement("div");
-  view.className = "view";
-  const img = document.createElement("img");
-  img.alt = name;
-  const video = document.createElement("video");
-  video.playsInline = true;
-  video.muted = true;
-  video.controls = true;
-  hide(video);
-  view.appendChild(img);
-  view.appendChild(video);
+  layout = withOrder(layout, network, merged);
+  saveLayout(layout);
+}
 
-  const bar = document.createElement("div");
-  bar.className = "bar";
+function onTileHidden(network, name) {
+  layout = withHidden(layout, name, true);
+  saveLayout(layout);
+  refreshSectionChrome(network);
+}
+
+/** Re-insert a previously hidden tile at its stored position. */
+function showCamera(network, name) {
+  layout = withHidden(layout, name, false);
+  saveLayout(layout);
+
+  const camera = camerasOf(network).find((item) => item.name === name);
+  const handles = sections.get(network);
+  if (!camera || !handles) return;
+
+  if (hasTile(name)) {
+    startSnapshots(name);
+  } else {
+    handles.row.insertBefore(buildTile(camera), nextVisibleElement(network, name));
+  }
+  refreshSectionChrome(network);
+}
+
+/**
+ * The tile that a newly shown camera should be inserted before, or null to
+ * append: the first camera after it in the stored order that is on screen.
+ */
+function nextVisibleElement(network, name) {
+  const handles = sections.get(network);
+  const ordered = orderedCamerasOf(network).map((camera) => camera.name);
+  const position = ordered.indexOf(name);
+  if (position < 0) return null;
+
+  for (const candidate of ordered.slice(position + 1)) {
+    const element = handles.row.querySelector(
+      `.cell[data-camera="${CSS.escape(candidate)}"]`
+    );
+    if (element) return element;
+  }
+  return null;
+}
+
+/** Update a location's heading and its tray of hidden cameras. */
+function refreshSectionChrome(network) {
+  const handles = sections.get(network);
+  if (!handles) return;
+
+  const all = camerasOf(network);
+  const hiddenCameras = all.filter((camera) => isHidden(camera.name, layout));
+  const visibleCount = all.length - hiddenCameras.length;
+
+  handles.title.textContent = hiddenCameras.length
+    ? `${network} · ${visibleCount} of ${all.length} camera(s) shown`
+    : `${network} · ${all.length} camera(s)`;
+
+  handles.tray.replaceChildren();
+  if (!hiddenCameras.length) {
+    hide(handles.tray);
+    return;
+  }
+
   const label = document.createElement("span");
-  label.className = "name";
-  label.textContent = name;
-  const tag = document.createElement("span");
-  tag.className = "tag";
-  tag.textContent = camera.power === "usb" ? "USB · indoor" : "battery · outdoor";
-  const badge = document.createElement("span");
-  badge.className = "badge";
-  const liveBtn = document.createElement("button");
-  liveBtn.textContent = "Go live";
-  bar.append(label, tag, badge, liveBtn);
+  label.className = "tray-label";
+  label.textContent = "Hidden:";
+  handles.tray.appendChild(label);
 
-  const err = document.createElement("div");
-  err.className = "err";
+  hiddenCameras.forEach((camera) => {
+    const button = document.createElement("button");
+    button.className = "secondary chip";
+    button.textContent = `Show ${camera.name}`;
+    button.addEventListener("click", () => showCamera(network, camera.name));
+    handles.tray.appendChild(button);
+  });
 
-  cell.append(view, bar, err);
-  container.appendChild(cell);
-
-  const state = {
-    img,
-    video,
-    badge,
-    liveBtn,
-    err,
-    power: camera.power === "usb" ? "usb" : "battery",
-    timer: null,
-    hls: null,
-    live: false,
-  };
-  cells.set(name, state);
-
-  liveBtn.addEventListener("click", () => toggleLive(name));
-  startSnapshots(name);
-}
-
-function startSnapshots(name) {
-  const state = cells.get(name);
-  if (!state || state.timer) return;
-  const tick = () => {
-    state.img.src = `/api/snapshot/${encodeURIComponent(name)}?t=${Date.now()}`;
-  };
-  state.img.onerror = () => {
-    state.err.textContent = "Snapshot unavailable (camera offline or busy).";
-  };
-  state.img.onload = () => {
-    state.err.textContent = "";
-  };
-  tick();
-  state.timer = setInterval(tick, rates[state.power] || rates.usb);
-}
-
-function stopSnapshots(name) {
-  const state = cells.get(name);
-  if (state && state.timer) {
-    clearInterval(state.timer);
-    state.timer = null;
-  }
-}
-
-async function toggleLive(name) {
-  const state = cells.get(name);
-  if (!state) return;
-  if (state.live) {
-    await stopLive(name);
-  } else {
-    await startLive(name);
-  }
-}
-
-async function startLive(name) {
-  const state = cells.get(name);
-  state.err.textContent = "";
-  state.liveBtn.disabled = true;
-  state.liveBtn.textContent = "Starting…";
-  try {
-    const data = await api(`/api/liveview/${encodeURIComponent(name)}/start`, {
-      method: "POST",
+  if (hiddenCameras.length > 1) {
+    const showAll = document.createElement("button");
+    showAll.className = "secondary chip";
+    showAll.textContent = "Show all";
+    showAll.addEventListener("click", () => {
+      hiddenCameras.forEach((camera) => showCamera(network, camera.name));
     });
-    stopSnapshots(name);
-    attachHls(state, data.playlist);
-    hide(state.img);
-    show(state.video);
-    state.badge.textContent = "● LIVE";
-    state.badge.classList.add("live");
-    state.liveBtn.textContent = "Stop live";
-    state.live = true;
-  } catch (err) {
-    state.err.textContent = err.message;
-    state.liveBtn.textContent = "Go live";
-  } finally {
-    state.liveBtn.disabled = false;
+    handles.tray.appendChild(showAll);
   }
+  show(handles.tray);
 }
 
-function attachHls(state, playlist) {
-  if (state.hls) {
-    state.hls.destroy();
-    state.hls = null;
-  }
-  if (window.Hls && window.Hls.isSupported()) {
-    const hls = new window.Hls({ liveDurationInfinity: true });
-    hls.loadSource(playlist);
-    hls.attachMedia(state.video);
-    hls.on(window.Hls.Events.MANIFEST_PARSED, () => state.video.play());
-    hls.on(window.Hls.Events.ERROR, (_, data) => {
-      if (data.fatal) state.err.textContent = "Live stream error.";
-    });
-    state.hls = hls;
-  } else {
-    // Safari plays HLS natively.
-    state.video.src = playlist;
-    state.video.play();
-  }
+function startMetadataRefresh() {
+  if (metadataTimer) clearInterval(metadataTimer);
+  metadataTimer = setInterval(refreshMetadata, METADATA_REFRESH_MS);
 }
 
-async function stopLive(name) {
-  const state = cells.get(name);
-  state.liveBtn.disabled = true;
+/**
+ * Re-read camera metadata and update the chips in place.
+ *
+ * Tiles are only rebuilt when the camera set itself changed (one added to or
+ * removed from the Blink account); a plain metadata change never interrupts a
+ * live stream or resets the grid order.
+ */
+async function refreshMetadata() {
+  let cameras = null;
   try {
-    await api(`/api/liveview/${encodeURIComponent(name)}/stop`, { method: "POST" });
+    cameras = await api("/api/cameras");
   } catch (err) {
-    state.err.textContent = err.message;
+    statusEl.textContent = `Camera info refresh failed: ${err.message}`;
+    return;
   }
-  if (state.hls) {
-    state.hls.destroy();
-    state.hls = null;
+
+  const previousNames = [...camerasByNetwork.values()]
+    .flat()
+    .map((camera) => camera.name)
+    .sort();
+  const currentNames = cameras.map((camera) => camera.name).sort();
+
+  if (previousNames.join(" ") !== currentNames.join(" ")) {
+    await renderAll(cameras);
+    return;
   }
-  state.video.removeAttribute("src");
-  hide(state.video);
-  show(state.img);
-  state.badge.textContent = "";
-  state.badge.classList.remove("live");
-  state.liveBtn.textContent = "Go live";
-  state.liveBtn.disabled = false;
-  state.live = false;
-  startSnapshots(name);
+
+  camerasByNetwork = groupByNetwork(cameras);
+  cameras.forEach((camera) => updateTile(camera));
+  statusEl.textContent = `${cameras.length} camera(s) across your locations.`;
+  camerasByNetwork.forEach((_, network) => refreshSectionChrome(network));
 }
+
+// Best-effort release of backend live sessions when the page goes away. The
+// server also times sessions out, so a lost request is not fatal.
+window.addEventListener("pagehide", () => {
+  clearTiles();
+});
 
 boot();
