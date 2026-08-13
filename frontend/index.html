@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blink Tower — live Blink cameras</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Blink Tower</h1>
+      <p id="status" class="status"></p>
+      <div class="rates">
+        <label class="rate">
+          Indoor (USB)
+          <select id="rate-usb">
+            <option value="3">3s</option>
+            <option value="5" selected>5s</option>
+            <option value="10">10s</option>
+            <option value="30">30s</option>
+          </select>
+        </label>
+        <label class="rate">
+          Outdoor (battery)
+          <select id="rate-battery">
+            <option value="30">30s</option>
+            <option value="60" selected>1m</option>
+            <option value="120">2m</option>
+            <option value="300">5m</option>
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <!-- One-time auth panel (shown only when login / 2FA is needed). -->
+    <section id="auth" class="auth hidden">
+      <p id="auth-msg"></p>
+      <div id="auth-login">
+        <button id="login-btn">Connect to Blink</button>
+      </div>
+      <form id="auth-2fa" class="hidden">
+        <label for="pin">Enter the 2FA pin Blink emailed you:</label>
+        <input id="pin" name="pin" inputmode="numeric" autocomplete="one-time-code" />
+        <button type="submit">Verify</button>
+      </form>
+    </section>
+
+    <main id="grid" class="locations"></main>
+
+    <script src="/static/vendor/hls.min.js"></script>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
