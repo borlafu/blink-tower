@@ -22,6 +22,13 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from .access import (
+    CSRF_HEADER,
+    CSRF_HEADER_VALUE,
+    has_csrf_header,
+    is_request_allowed,
+    requires_csrf_header,
+)
 from .blink_client import BlinkError, NotAuthenticated, client
 from .blinkpy_patches import apply_patches
 from .config import (
@@ -31,6 +38,29 @@ from .config import (
     settings,
 )
 from .liveview import LiveViewError, manager
+
+# Sent on every response. hls.js builds its worker and MediaSource from blob:
+# URLs, so media-src and worker-src must allow blob: — without them live view
+# breaks silently while snapshots keep working.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "img-src 'self' data:; "
+    "media-src 'self' blob:; "
+    "worker-src blob:; "
+    "script-src 'self'; "
+    "style-src 'self'; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'"
+)
+
+SECURITY_HEADERS = {
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+}
+
+HLS_PREFIX = "/hls/"
 
 
 def _ok(data=None) -> dict:
@@ -42,20 +72,20 @@ def _err(message: str) -> dict:
 
 
 def _warn_if_exposed() -> None:
-    """Warn loudly when the configured bind address is not loopback.
+    """Warn early when the configured bind address is not loopback.
 
-    There is no login on this app: reaching the port is enough to see the
-    cameras. Note this checks the HOST setting only — passing --host to uvicorn
-    directly bypasses it.
+    This is only a hint: the real enforcement is the access gate below, which
+    checks the peer address of every request and so cannot be bypassed by
+    passing --host to uvicorn.
     """
 
     if is_loopback_bind(settings.host):
         return
     print(
         f"[blink-tower] WARNING: HOST is {settings.host!r}, not loopback. "
-        "This app has NO authentication — anyone who can reach this port can "
-        "view your cameras and start live streams. Put it behind a VPN or "
-        "authenticating reverse proxy, or use the default 127.0.0.1."
+        "Non-local requests will be refused with 403 — this app has no login of "
+        "its own, so authentication belongs to a reverse proxy or VPN in front "
+        "of it. See deploy/README.md."
     )
 
 
@@ -88,6 +118,48 @@ app.mount(
     StaticFiles(directory=str(settings.frontend_dir), check_dir=False),
     name="static",
 )
+
+
+@app.middleware("http")
+async def access_gate(request: Request, call_next):
+    """Refuse non-local requests, enforce CSRF, and add hardening headers.
+
+    Runs before the StaticFiles mounts, so it covers /hls (live video segments)
+    and /static as well as the API. Gating only /api/* would leave the video
+    stream readable at a guessable path.
+    """
+
+    if not is_request_allowed(request):
+        return JSONResponse(
+            status_code=403,
+            content=_err(
+                "Refused: this app only accepts requests from the machine it runs "
+                "on. Authentication belongs to a reverse proxy or VPN in front of "
+                "it — see deploy/README.md. If you ARE behind a local reverse "
+                "proxy, start uvicorn with --no-proxy-headers: enabled proxy "
+                "headers (uvicorn's default) replace the peer address with "
+                "X-Forwarded-For, which makes every forwarded client look remote."
+            ),
+        )
+
+    if requires_csrf_header(request.method, request.url.path) and not has_csrf_header(
+        request.headers
+    ):
+        return JSONResponse(
+            status_code=403,
+            content=_err(
+                f"Missing {CSRF_HEADER}: {CSRF_HEADER_VALUE} header. This blocks "
+                "cross-site requests; use the app's own UI."
+            ),
+        )
+
+    response = await call_next(request)
+    for header, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(header, value)
+    if request.url.path.startswith(HLS_PREFIX):
+        # Live segments are per-session and deleted on stop; never cache them.
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.exception_handler(NotAuthenticated)
@@ -164,7 +236,15 @@ def run() -> None:
 
     import uvicorn
 
-    uvicorn.run(app, host=settings.host, port=settings.port)
+    # proxy_headers must stay off: the access gate authorizes on the real peer
+    # address, and uvicorn's default (True) would replace it with the
+    # X-Forwarded-For value. See backend/access.py.
+    uvicorn.run(
+        app,
+        host=settings.host,
+        port=settings.port,
+        proxy_headers=False,
+    )
 
 
 if __name__ == "__main__":

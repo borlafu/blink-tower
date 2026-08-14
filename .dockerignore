@@ -1,0 +1,24 @@
+# Secrets must never be baked into an image layer. They are passed at runtime
+# (env_file) and persisted in a volume instead.
+.env
+.env.*
+blink_creds.json
+
+# Local runtime state and build artifacts.
+.venv/
+venv/
+hls_tmp/
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+
+# Not needed at runtime.
+.git/
+.github/
+docs/
+deploy/
+LICENSE
+README.md
+*.log
+.DS_Store

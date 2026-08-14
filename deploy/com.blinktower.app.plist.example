@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd unit for running Blink Tower on macOS.
+
+  Install:
+    1. Replace /Users/YOU/code/blink-tower below with your actual path.
+    2. cp com.blinktower.app.plist.example ~/Library/LaunchAgents/com.blinktower.app.plist
+    3. launchctl load ~/Library/LaunchAgents/com.blinktower.app.plist
+
+  Stop / remove:
+    launchctl unload ~/Library/LaunchAgents/com.blinktower.app.plist
+
+  Note this is a LaunchAgent (runs as you, on login), not a LaunchDaemon. The app
+  needs your .env and blink_creds.json, both of which are owner-only.
+-->
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.blinktower.app</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/YOU/code/blink-tower</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/Users/YOU/code/blink-tower/.venv/bin/uvicorn</string>
+      <string>backend.main:app</string>
+      <string>--host</string>
+      <string>127.0.0.1</string>
+      <string>--port</string>
+      <string>8000</string>
+
+      <!--
+        The flag below is REQUIRED. Uvicorn enables proxy headers by default, and
+        when enabled it replaces the request's peer address with the
+        X-Forwarded-For value. The access gate authorizes on the peer address, so
+        with the default a reverse proxy forwarding your tablet would make that
+        tablet look remote and every request would be refused with 403.
+
+        Proxy headers become correct only once the app has a session login of its
+        own, because the authorization decision then stops depending on the peer
+        address. Even then, never pair them with a wildcard forwarded allow list.
+      -->
+      <string>--no-proxy-headers</string>
+    </array>
+
+    <!-- ffmpeg must be on PATH for live view; Homebrew paths differ by arch. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PATH</key>
+      <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+      <key>SuccessfulExit</key>
+      <false/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/YOU/Library/Logs/blink-tower.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOU/Library/Logs/blink-tower.log</string>
+  </dict>
+</plist>

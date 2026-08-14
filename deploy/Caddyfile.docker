@@ -1,0 +1,36 @@
+# Caddy config for the docker-compose recipe.
+#
+# This Caddy container shares the app container's network namespace, so
+# 127.0.0.1:8000 below IS the app — and the app sees a loopback peer, which is
+# the only thing its access gate accepts.
+#
+# For a real hostname on your LAN, use deploy/Caddyfile.example instead.
+
+{
+	admin off
+
+	# Keep certificate issuance (needed below) but do not bind :80 for redirects;
+	# only the proxy port is published.
+	auto_https disable_redirects
+}
+
+# The hostname matters: Caddy issues a certificate per name, so a bare ":8443"
+# would have no certificate to present and every handshake would fail. "localhost"
+# is not a public domain, so Caddy uses its internal CA and never contacts ACME.
+https://localhost:8443 {
+	# Certificate from Caddy's own CA. curl and browsers will warn unless you trust
+	# that root; for local verification use `curl -k`. For LAN use, install the
+	# root CA on your devices or use a real certificate — see Caddyfile.example.
+	tls internal
+
+	basic_auth {
+		# Default password for verification only: "verify-me"
+		# Replace for any real use:  docker run --rm caddy caddy hash-password
+		viewer $2a$14$dv8tT6t9cSgBKIYFynqVD./xLMFb1ukKsdMZt.g03J2tjyOxkErJm
+	}
+
+	encode gzip
+
+	# The app is loopback-only inside this shared namespace.
+	reverse_proxy 127.0.0.1:8000
+}

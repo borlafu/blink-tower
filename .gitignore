@@ -1,5 +1,6 @@
 # Secrets & Blink session
 .env
+.env.docker
 blink_creds.json
 
 # Live view temp output

@@ -67,12 +67,11 @@
               <strong class="callout-title" id="warning-heading"
                 >Read this before you expose it</strong
               >
-              Blink Tower has <strong>no authentication</strong>. Anyone who can
-              reach the port can watch your cameras and start live streams. It
-              binds to <code>127.0.0.1</code> by default, so only your own
-              machine can connect —
-              <a href="#security">keep it that way, or put real auth in front</a
-              >.
+              Blink Tower has <strong>no login of its own</strong> — it refuses
+              every request that did not come from the machine it runs on. To
+              reach it from another device you put a password-protected reverse
+              proxy or a VPN in front of it.
+              <a href="#security">Two ready-made recipes below.</a>
             </p>
           </div>
         </div>
@@ -294,7 +293,7 @@ pip install -r requirements.txt
 cp .env.example .env
 # edit .env: set BLINK_USERNAME and BLINK_PASSWORD
 
-uvicorn backend.main:app
+uvicorn backend.main:app --no-proxy-headers
 # then open http://localhost:8000</code></pre>
 
           <p class="section-lede">On first launch:</p>
@@ -334,33 +333,43 @@ uvicorn backend.main:app
 
           <ul class="risks">
             <li>
-              <strong>No authentication, at all.</strong> There is no login
-              page. Reaching the port is enough to view every camera and start
-              live streams. The default <code>127.0.0.1</code> bind is what
-              keeps that safe.
+              <strong>No login of its own.</strong> There is no password owned by
+              the app. Instead it <strong>refuses any request that did not come
+              from the machine it runs on</strong>, so authentication is the job
+              of the proxy or VPN you put in front. Whoever gets through that
+              layer sees the cameras.
+            </li>
+
+            <li class="handled">
+              <strong>Already handled: loopback is enforced, not suggested.</strong>
+              The gate checks the peer address of every request — including the
+              live-video segments under <code>/hls</code> — so starting the server
+              with <code>--host 0.0.0.0</code> no longer quietly exposes anything.
+              It fails closed with a <code>403</code>.
             </li>
 
             <li>
-              <strong>The exposure warning can be bypassed.</strong> Setting
-              <code>HOST</code> to anything other than loopback prints a warning
-              at startup — but that check only reads the <code>HOST</code>
-              setting. Passing <code>--host</code> to <code>uvicorn</code>
-              directly skips it entirely and prints nothing.
+              <strong>Do not port-forward it.</strong> Ever. Use a VPN
+              (Tailscale/WireGuard) or a reverse proxy that asks for a password.
+              And do not run <code>tailscale funnel</code> — that publishes the
+              service to the public internet.
             </li>
 
             <li>
-              <strong>Do not port-forward it.</strong> If you need access from
-              outside the house, put it behind a VPN such as WireGuard or
-              Tailscale, or an authenticating reverse proxy. Those give you the
-              login layer the app itself does not have.
+              <strong>Start uvicorn with <code>--no-proxy-headers</code>.</strong>
+              Uvicorn turns proxy headers on by default and then replaces the peer
+              address with <code>X-Forwarded-For</code> — which makes every
+              proxied client look remote and get refused. Never pair proxy headers
+              with <code>--forwarded-allow-ips '*'</code>: that lets anyone spoof a
+              loopback address and walk through the gate.
             </li>
 
-            <li>
-              <strong>No CSRF protection.</strong> While the app is running,
-              another site open in your browser can fire a simple cross-origin
-              <code>POST</code> at the auth or live-view endpoints. It cannot
-              read the response, but the side effect — starting a stream,
-              draining a camera battery — still happens.
+            <li class="handled">
+              <strong>Already handled: CSRF.</strong> State-changing API calls
+              must carry a custom header, which cannot be sent cross-origin
+              without a preflight the app never grants. This matters even behind a
+              proxy password, because browsers cache basic-auth credentials and
+              attach them to cross-site requests.
             </li>
 
             <li>
@@ -393,9 +402,64 @@ uvicorn backend.main:app
             </li>
           </ul>
 
+          <h3 style="margin-top: 1.75rem">Deploying it safely</h3>
+          <p class="section-lede">
+            Two recipes ship in the repo under
+            <code>deploy/</code>. Pick by the threat you care about.
+          </p>
+
+          <ul class="cards">
+            <li class="card">
+              <span class="tagline-chip">Quickest</span>
+              <h3>Docker Compose</h3>
+              <p>
+                <code>docker compose up --build -d</code> brings up the app plus a
+                password-protected Caddy in front of it. The app's own port is
+                never published, and the proxy shares its network namespace so the
+                loopback rule still holds.
+              </p>
+              <p>
+                Ships with a default password for verification and publishes only
+                on <code>127.0.0.1</code>, so it is not reachable from your network
+                until you change both.
+              </p>
+            </li>
+
+            <li class="card">
+              <span class="tagline-chip">LAN</span>
+              <h3>Caddy with a password and HTTPS</h3>
+              <p>
+                Caddy becomes the only listener, asks for a password
+                (<code>basic_auth</code>) and terminates TLS. HTTPS matters even at
+                home: without it that password crosses your wifi in cleartext,
+                where any other device on the network can read it.
+              </p>
+              <p>
+                Protects against other devices and guests on your own network —
+                not just the internet.
+              </p>
+            </li>
+
+            <li class="card">
+              <span class="tagline-chip">Remote</span>
+              <h3>Tailscale</h3>
+              <p>
+                <code>tailscale serve --bg --https=443 localhost:8000</code> gives
+                you a real certificate on a private hostname, reachable only from
+                your own devices. No open ports, no public DNS.
+              </p>
+              <p>
+                Honest caveat: Tailscale authenticates the <em>device</em>. A
+                stolen phone that is still on your tailnet is access, so use device
+                approval and key expiry.
+              </p>
+            </li>
+          </ul>
+
           <p class="section-lede" style="margin-top: 1.25rem">
-            Short version: loopback and a VPN, or a reverse proxy that asks for a
-            password. Never a bare port on the internet.
+            Short version: keep the app on loopback and reach it through a VPN, or
+            a reverse proxy that asks for a password. Never a bare port on the
+            internet.
           </p>
         </div>
       </section>

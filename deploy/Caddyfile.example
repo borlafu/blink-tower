@@ -1,0 +1,45 @@
+# Blink Tower behind Caddy — LAN access with a password and HTTPS.
+#
+# Caddy becomes the only listener. The app stays on 127.0.0.1, which is the only
+# thing it accepts anyway, so this proxy is what makes it reachable from your
+# tablet or laptop — and what asks for a password first.
+#
+#   caddy run --config Caddyfile
+#
+# Why HTTPS on a home network: without it, the basic-auth password crosses your
+# wifi in cleartext, where any other device on that network can read it. The
+# password is only as private as the transport carrying it.
+
+tower.home.arpa {
+	# Caddy issues a certificate from its own internal CA. You must install that
+	# CA's root on each device that will view the cameras, or the browser will
+	# warn. Alternative if you own a domain: use a real certificate via a DNS-01
+	# challenge, which needs no per-device trust.
+	tls internal
+
+	# Generate the hash with:  caddy hash-password
+	# Paste the output below, replacing the placeholder. Never commit a real hash
+	# for a password you use elsewhere.
+	#
+	# Leaving the placeholder in place fails closed: Caddy starts normally and
+	# then rejects every login with 401, so a forgotten replacement locks you out
+	# rather than letting anyone in.
+	basic_auth {
+		viewer $2a$14$REPLACE_THIS_WITH_YOUR_OWN_BCRYPT_HASH_FROM_CADDY
+	}
+
+	encode gzip
+
+	# The app refuses anything that is not loopback, so this must stay 127.0.0.1.
+	# Uvicorn MUST be started with --no-proxy-headers, otherwise it replaces the
+	# peer address with the X-Forwarded-For value Caddy sets here and the app will
+	# refuse every request you forward. See deploy/README.md.
+	reverse_proxy 127.0.0.1:8000
+}
+
+# Making the hostname resolve, pick one:
+#   - Add an entry to your router's local DNS: tower.home.arpa -> <this host's LAN IP>
+#   - Or add the same line to /etc/hosts on each viewing device
+#
+# .home.arpa is the standard-reserved name for home networks (RFC 8375), so it
+# will never collide with a real domain.

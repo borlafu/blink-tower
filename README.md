@@ -55,9 +55,13 @@ cp .env.example .env
 ## Run
 
 ```bash
-uvicorn backend.main:app
+uvicorn backend.main:app --no-proxy-headers
 # then open http://localhost:8000
 ```
+
+Prefer containers? `deploy/docker-compose.yml` runs the app behind a
+password-protected proxy in one command — see
+[deploy/README.md](deploy/README.md).
 
 First launch:
 
@@ -93,30 +97,47 @@ default the server binds to `127.0.0.1` (local only).
 
 ## Security
 
-This app is built for **single-user local use**. Read this before exposing it.
+**The app has no login of its own, and refuses to pretend otherwise:** every
+request that did not come from the machine it runs on is rejected with `403`.
+Authentication belongs to a reverse proxy or VPN in front of it.
 
-- **No authentication.** Anyone who can reach the port can view your cameras
-  and start live streams. The default bind is `127.0.0.1`, so only this machine
-  can connect. Setting `HOST` to anything else prints a warning at startup —
-  if you need remote access, put it behind a VPN (e.g. WireGuard/Tailscale) or
-  an authenticating reverse proxy. Note the warning checks the `HOST` setting;
-  passing `--host` to `uvicorn` directly bypasses the check.
+See **[deploy/README.md](deploy/README.md)** for three ready-made recipes: Docker
+Compose (app + authenticating proxy in one command), Caddy with a password and
+HTTPS for the LAN, and Tailscale for remote access.
+
+- **Loopback is enforced, not merely suggested.** The gate
+  (`backend/access.py`) checks the peer address of every request — including
+  `/hls/*`, where live video segments live — so `uvicorn --host 0.0.0.0` no
+  longer quietly exposes anything. The startup warning is just an early hint;
+  the enforcement does not depend on it.
+- **Run uvicorn with `--no-proxy-headers`.** Uvicorn enables proxy headers by
+  default and then replaces the peer address with `X-Forwarded-For`, which makes
+  every proxied client look remote and get refused. `python -m backend.main`
+  sets this for you. Never combine proxy headers with
+  `--forwarded-allow-ips '*'` — that lets anyone spoof a loopback address.
+- **CSRF.** State-changing `/api/*` calls must carry
+  `X-Requested-With: blink-tower`. A custom header cannot be sent cross-origin
+  without a CORS preflight, which this app never grants. This matters even behind
+  a proxy password: browsers cache HTTP basic-auth credentials and will attach
+  them to cross-site requests.
+- **Hardening headers** on every response: a CSP (`default-src 'self'`, with
+  `blob:` allowed for `media-src`/`worker-src` because hls.js needs it),
+  `nosniff`, `no-referrer`, `X-Frame-Options: DENY`, and `no-store` on HLS.
 - **Credentials come from the environment only** — never hardcoded. `.env` and
   the cached session file `blink_creds.json` are gitignored; do not commit
   them. The session file holds your Blink account password and refresh tokens,
   and is written with `0600` (owner-only) permissions.
-- **No CSRF protection.** While the app is running, another site open in your
-  browser can fire a simple cross-origin `POST` at `/api/auth/start` or
-  `/api/liveview/{name}/start`. It cannot read the response, but the side
-  effect (starting a stream, draining a camera battery) still happens. Not a
-  concern for a loopback-only single-user setup; worth fixing before any
-  multi-user or exposed deployment.
 - **Error messages are verbose on purpose.** Upstream Blink/blinkpy failure
-  text is passed through to the client to make local debugging possible. Do not
-  expose this app to untrusted clients as-is.
+  text is passed through to the client to make local debugging possible. That is
+  fine for a single local user and a needless leak to anyone else.
 - Camera names arriving from the Blink cloud are sanitized before being used as
   filesystem paths (`backend/paths.py`), and rendered with `textContent` in the
   frontend — no path traversal, no XSS.
+
+What this still does **not** give you: a password owned by the app. Whoever gets
+through your proxy or onto your tailnet sees the cameras. The authorization
+decision in `backend/access.py` is written as a single swappable predicate so an
+app-level session login can be added there without touching anything else.
 
 ## Limitations
 

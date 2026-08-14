@@ -1,0 +1,68 @@
+# Blink Tower + Caddy, as a verifiable local deployment.
+#
+#   cd deploy
+#   cp .env.docker.example .env.docker      # then put your real Blink credentials in it
+#   docker compose up --build -d
+#   open https://localhost:8443             # user: viewer  password: verify-me
+#
+# Why the proxy shares the app's network namespace
+# ------------------------------------------------
+# The app refuses any request whose peer address is not loopback. On a normal
+# bridge network Caddy would reach it from 172.x.x.x and every request would be
+# refused with 403. `network_mode: "service:app"` puts Caddy inside the app's
+# network namespace, so it connects over 127.0.0.1 and the peer stays loopback.
+#
+# Consequence: the published port lives on the `app` service, not on `caddy`.
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: blink-tower:local
+    restart: unless-stopped
+
+    # Credentials are passed at runtime, never baked into the image.
+    env_file:
+      - .env.docker
+
+    # Only the proxy's port is exposed. The app's own 8000 stays inside the
+    # namespace and is never published — nothing outside can reach it directly.
+    ports:
+      - "127.0.0.1:8443:8443"
+
+    # The cached Blink session (which contains account credentials) persists here
+    # so 2FA is only needed once.
+    volumes:
+      - blink-session:/data
+
+    # HLS segments are disposable and rewritten constantly; keep them off disk.
+    tmpfs:
+      - /tmp/hls
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/status"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+
+    # Share the app's network namespace: see the note at the top.
+    network_mode: "service:app"
+    depends_on:
+      app:
+        condition: service_started
+
+    volumes:
+      - ./Caddyfile.docker:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  blink-session:
+  caddy-data:
+  caddy-config:

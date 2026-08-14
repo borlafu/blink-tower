@@ -2,6 +2,12 @@
 
 // Shared HTTP + visibility helpers used by every frontend module.
 
+// The backend requires this header on state-changing API calls. A custom header
+// cannot be sent cross-origin without a CORS preflight, which the app never
+// grants — so this is what stops another site firing requests at your cameras.
+const CSRF_HEADER = "X-Requested-With";
+const CSRF_HEADER_VALUE = "blink-tower";
+
 /**
  * Call a JSON API route and unwrap the {success, data, error} envelope.
  *
@@ -9,7 +15,9 @@
  * can surface it directly to the user.
  */
 export async function api(path, options) {
-  const res = await fetch(path, options);
+  const opts = { ...(options || {}) };
+  opts.headers = { ...(opts.headers || {}), [CSRF_HEADER]: CSRF_HEADER_VALUE };
+  const res = await fetch(path, opts);
   let body = null;
   try {
     body = await res.json();
