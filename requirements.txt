@@ -1,6 +1,6 @@
-fastapi>=0.110
-uvicorn[standard]>=0.29
-blinkpy>=0.22
-aiohttp>=3.9
-aiofiles>=23.2
-python-dotenv>=1.0
+fastapi>=0.141
+uvicorn[standard]>=0.53
+blinkpy>=0.25
+aiohttp>=3.14
+aiofiles>=25.1
+python-dotenv>=1.2
