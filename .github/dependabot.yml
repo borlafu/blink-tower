@@ -1,0 +1,28 @@
+version: 2
+
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      api-server:
+        patterns:
+          - "fastapi"
+          - "starlette"
+          - "uvicorn*"
+          - "blinkpy"
+          - "aiohttp"
+          - "aiofiles"
+      development:
+        patterns:
+          - "pytest*"
+          - "black"
+          - "ruff"
+          - "mypy"
+          - "flake8*"
+          - "coverage*"
+        dependency-type: "development"
+      others:
+        patterns:
+          - "*"
